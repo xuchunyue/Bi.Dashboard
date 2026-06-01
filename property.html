@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>经营看板 - 物业管理</title>
+<script src="https://modao.cc/agent-py/static/source/js/tailwindcss.js"></script>
+<script src="https://modao.cc/agent-py/static/source/js/iconify-icon.min.js"></script>
+<script src="https://modao.cc/agent-py/static/source/js/echarts.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #f0f2f5; color: #333; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; height: 100vh; overflow: hidden; }
+.sidebar { width: 220px; position: fixed; left: 0; top: 0; bottom: 0; background: #ffffff; border-right: 1px solid #e8ecf1; display: flex; flex-direction: column; flex-shrink: 0; z-index: 10; }
+.sidebar-brand { height: 64px; display: flex; align-items: center; padding: 0 20px; border-bottom: 1px solid #e8ecf1; gap: 10px; }
+.sidebar-brand-icon { width: 32px; height: 32px; background: linear-gradient(135deg, #1890ff, #096dd9); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 20px; }
+.sidebar-brand-text { font-size: 18px; font-weight: 700; color: #1a2332; }
+.sidebar-nav { flex: 1; padding: 16px 12px; display: flex; flex-direction: column; gap: 4px; }
+.sidebar-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 8px; color: #595959; font-size: 14px; text-decoration: none; transition: all 0.15s; }
+.sidebar-item:hover { background: #f0f5ff; color: #1890ff; }
+.sidebar-item.active { background: #e6f7ff; color: #1890ff; font-weight: 600; }
+.sidebar-item iconify-icon { font-size: 18px; }
+.topbar { height: 64px; background: #ffffff; border-bottom: 1px solid #e8ecf1; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; flex-shrink: 0; margin-left: 220px; }
+.topbar-left { display: flex; align-items: center; gap: 12px; }
+.topbar-title { font-size: 22px; font-weight: 700; color: #1a2332; }
+.topbar-date { font-size: 13px; color: #8c8c8c; }
+.main-area { flex: 1; overflow-y: auto; padding: 16px 16px 40px; margin-left: 220px; height: calc(100vh - 64px); }
+/* 筛选条件 */
+.filter-row { background: #ffffff; border-bottom: 1px solid #e8ecf1; padding: 10px 20px; box-sizing: border-box; width: 100%; display: flex; align-items: center; gap: 16px; }
+.filter-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.filter-group label {
+    font-size: 13px;
+    color: #8c8c8c;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.filter-group { display: flex; align-items: center; gap: 8px; }
+.filter-group label { font-size: 13px; color: #8c8c8c; white-space: nowrap; display: flex; align-items: center; gap: 4px; }
+.filter-btn { padding: 5px 16px; border-radius: 4px; font-size: 13px; border: 1px solid #d9d9d9; cursor: pointer; transition: all 0.15s; background: #f5f5f5; color: #595959; }
+.filter-btn:hover { border-color: #1890ff; color: #1890ff; }
+.filter-btn-active { background: #1890ff; border-color: #1890ff; color: #fff; }
+select, input[type="date"], input[type="month"] { background: #ffffff; border: 1px solid #d9d9d9; border-radius: 6px; padding: 6px 12px; font-size: 13px; color: #333; outline: none; cursor: pointer; transition: border-color 0.2s; }
+select:focus, input[type="date"]:focus, input[type="month"]:focus { border-color: #1890ff; box-shadow: 0 0 0 2px rgba(24,144,255,0.15); }
+/* 顶部三卡片 */
+.top-cards { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+.stat-card { background: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); padding: 18px 20px; }
+.stat-card-title { font-size: 15px; font-weight: 600; color: #1a2332; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+.stat-card-title iconify-icon { font-size: 20px; }
+.stat-card .value { font-size: 22px; font-weight: 700; color: #1a2332; line-height: 1.2; }
+.stat-card .label { font-size: 11px; color: #8c8c8c; }
+.chart-box { background: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); padding: 14px 16px; }
+.chart-box-title { font-size: 15px; font-weight: 600; color: #1a2332; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d9d9d9; border-radius: 3px; }
+.bottom-timestamp { position: fixed; bottom: 16px; right: 24px; font-size: 12px; color: #bfbfbf; z-index: 100; padding: 6px 14px; background: #ffffff; border: 1px solid #e8ecf1; border-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+</style>
+</head>
+<body>
+<aside class="sidebar">
+<div class="sidebar-brand">
+<div class="sidebar-brand-icon"><iconify-icon icon="mdi:chart-box"></iconify-icon></div>
+<span class="sidebar-brand-text">经营看板</span>
+</div>
+<nav class="sidebar-nav">
+<a class="sidebar-item" href="index.html"><iconify-icon icon="mdi:view-dashboard"></iconify-icon><span>经营概览</span></a>
+<a class="sidebar-item" href="hr.html"><iconify-icon icon="mdi:account-group"></iconify-icon><span>人力管理</span></a>
+<a class="sidebar-item active" href="property.html"><iconify-icon icon="mdi:city"></iconify-icon><span>物业管理</span></a>
+<a class="sidebar-item" href="hotel.html"><iconify-icon icon="mdi:office-building-outline"></iconify-icon><span>楼宇运营</span></a>
+<a class="sidebar-item" href="hotel-management.html"><iconify-icon icon="mdi:office-building"></iconify-icon><span>酒店管理</span></a>
+<a class="sidebar-item" href="taxi.html"><iconify-icon icon="mdi:car"></iconify-icon><span>出租车</span></a>
+</nav>
+</aside>
+<div class="topbar">
+<div class="topbar-left"><h1 class="topbar-title">物业管理看板</h1></div>
+<div class="topbar-date">2026年5月</div>
+</div>
+<div class="main-area">
+<!-- 筛选条件 -->
+<div class="filter-row">
+<div class="filter-group">
+<label><iconify-icon icon="mdi:calendar" style="color:#8c8c8c;"></iconify-icon> 数据日期</label>
+<span id="datePickerContainer"><input type="month" id="datePicker" value="2026-05" onchange="refreshData()"/></span>
+</div>
+<div class="filter-group">
+<label>时间粒度</label>
+<div style="margin-left:auto;display:flex;gap:4px;">
+<button class="filter-btn" onclick="switchDateType(this,'day')">日</button>
+<button class="filter-btn filter-btn-active" onclick="switchDateType(this,'month')">月</button>
+<button class="filter-btn" onclick="switchDateType(this,'quarter')">季</button>
+<button class="filter-btn" onclick="switchDateType(this,'year')">年</button>
+</div>
+</div>
+</div>
+<div class="top-cards">
+<!-- 物业费情况 -->
+<div class="stat-card">
+<div class="stat-card-title"><iconify-icon icon="mdi:home-city" style="color:#1890ff;"></iconify-icon>物业费情况</div>
+<div style="display:flex;align-items:flex-start;gap:16px;margin-bottom:12px;">
+<div style="flex:1;">
+<div class="label">累计已收物业费</div>
+<div class="value" style="color:#1890ff;font-size:28px;">14,994 <span style="font-size:14px;color:#8c8c8c;">万元</span></div>
+<div class="label" style="margin-top:4px;">年度应收 <span style="color:#1a2332;font-weight:600;">23,640 万元</span></div>
+</div>
+<div style="text-align:center;min-width:80px;">
+<div style="width:56px;height:56px;border-radius:50%;background:#e6f7ff;display:flex;align-items:center;justify-content:center;margin:0 auto 4px;">
+<span style="font-size:18px;font-weight:700;color:#1890ff;">63.4</span>
+</div>
+<div class="label" style="font-size:10px;">已收费率%</div>
+</div>
+</div>
+<div style="display:flex;gap:16px;padding-top:10px;border-top:1px solid #f0f0f0;">
+<div><span class="label">收费面积 </span><span style="font-size:13px;font-weight:600;">350,000 m²</span></div>
+<div style="margin-left:auto;"><span class="label">欠款户数 </span><span style="font-size:13px;font-weight:600;color:#fa8c16;">168 户</span></div>
+</div>
+</div>
+<!-- 车位费情况 -->
+<div class="stat-card parking">
+<div class="stat-card-title"><iconify-icon icon="mdi:car" style="color:#52c41a;"></iconify-icon>车位费情况</div>
+<div style="display:flex;align-items:flex-start;gap:16px;margin-bottom:12px;">
+<div style="flex:1;">
+<div class="label">累计已收车位费</div>
+<div class="value" style="color:#52c41a;font-size:28px;">575.66 <span style="font-size:14px;color:#8c8c8c;">万元</span></div>
+<div class="label" style="margin-top:4px;">年度应收 <span style="color:#1a2332;font-weight:600;">978.22 万元</span></div>
+</div>
+<div style="text-align:center;min-width:80px;">
+<div style="width:56px;height:56px;border-radius:50%;background:#f6ffed;display:flex;align-items:center;justify-content:center;margin:0 auto 4px;">
+<span style="font-size:18px;font-weight:700;color:#52c41a;">58.8</span>
+</div>
+<div class="label" style="font-size:10px;">收缴率%</div>
+</div>
+</div>
+<div style="display:flex;gap:16px;padding-top:10px;border-top:1px solid #f0f0f0;">
+<div><span class="label">车位数量 </span><span style="font-size:13px;font-weight:600;">680 个</span></div>
+<div style="margin-left:auto;"><span class="label">已缴率 </span><span style="font-size:13px;font-weight:600;color:#52c41a;">75.0%</span></div>
+</div>
+</div>
+<!-- 欠费情况 -->
+<div class="stat-card debt">
+<div class="stat-card-title"><iconify-icon icon="mdi:alert-circle" style="color:#fa8c16;"></iconify-icon>欠费情况</div>
+<div style="display:flex;align-items:flex-start;gap:16px;margin-bottom:12px;">
+<div style="flex:1;">
+<div class="label">累计欠费金额</div>
+<div class="value" style="color:#fa8c16;font-size:28px;">644.04 <span style="font-size:14px;color:#8c8c8c;">万元</span></div>
+<div class="label" style="margin-top:4px;">欠费户数 <span style="color:#fa8c16;font-weight:600;">168 户</span></div>
+</div>
+<div style="text-align:center;min-width:80px;">
+<div style="width:56px;height:56px;border-radius:50%;background:#fff7e6;display:flex;align-items:center;justify-content:center;margin:0 auto 4px;">
+<span style="font-size:18px;font-weight:700;color:#fa8c16;">64.5</span>
+</div>
+<div class="label" style="font-size:10px;">回款率%</div>
+</div>
+</div>
+<div style="display:flex;gap:16px;padding-top:10px;border-top:1px solid #f0f0f0;">
+<div><span class="label">上年度回款 </span><span style="font-size:13px;font-weight:600;">200.72 万元</span></div>
+<div style="margin-left:auto;"><span class="label">收缴率 </span><span style="font-size:13px;font-weight:600;color:#fa8c16;">64.52%</span></div>
+</div>
+</div>
+</div>
+<!-- 图表区域 -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+<div class="chart-box">
+<div class="chart-box-title">月度费用支出构成</div>
+<div id="expensePieChart" style="height:280px;"></div>
+</div>
+<div class="chart-box">
+<div class="chart-box-title">物业费收缴率趋势</div>
+<div id="collectionTrendChart" style="height:280px;"></div>
+</div>
+<div class="chart-box">
+<div class="chart-box-title">月度支出趋势</div>
+<div id="expenseTrendChart" style="height:280px;"></div>
+</div>
+<div class="chart-box">
+<div class="chart-box-title">车位费收缴情况</div>
+<div id="parkingChart" style="height:280px;"></div>
+</div>
+</div>
+</div>
+<div class="bottom-timestamp">数据更新时间：2026-05-18 09:00</div>
+<script>
+const ECHARTS_THEME_COLORS = ['#1890ff','#722ed1','#52c41a','#fa8c16','#eb2f96','#13c2c2'];
+
+var currentDateType = 'month';
+
+function switchDateType(btn, type) {
+    document.querySelectorAll('.filter-row .filter-btn').forEach(function(b){ b.classList.remove('filter-btn-active'); });
+    btn.classList.add('filter-btn-active');
+    currentDateType = type;
+    var c=document.getElementById('datePickerContainer');
+    var tp='',val='';
+    if(type==='day'){tp='date';val='2026-05-18';}
+    else if(type==='month'){tp='month';val='2026-05';}
+    else if(type==='quarter'){tp='month';val='2026-01';}
+    else{c.innerHTML='<select id=\"datePicker\" onchange=\"refreshData()\"><option value=\"2025\">2025年</option><option value=\"2026\" selected>2026年</option></select>';refreshData();return;}
+    c.innerHTML='<input id=\"datePicker\" type=\"'+tp+'\" value=\"'+val+'\" onchange=\"refreshData()\"/>';
+    refreshData();
+}
+
+function refreshData() {
+    var dp = document.getElementById('datePicker');
+    console.log('筛选条件 - 时间粒度:', currentDateType, '日期:', dp.value);
+}
+
+window.onload=function(){initCharts();};
+
+function initCharts(){
+var eChart=echarts.init(document.getElementById('expensePieChart'));
+eChart.setOption({color:ECHARTS_THEME_COLORS,backgroundColor:'#ffffff',tooltip:{trigger:'item',formatter:function(p){return p.name+': ¥'+p.value+' ('+p.percent+'%)';},backgroundColor:'#ffffff',borderColor:'#e8ecf1',textStyle:{color:'#333'}},series:[{type:'pie',radius:['40%','70%'],avoidLabelOverlap:false,itemStyle:{borderRadius:8,borderColor:'#ffffff',borderWidth:3},label:{show:true,position:'outside',formatter:'{b}\n{d}%',fontSize:12,color:'#595959'},labelLine:{length:10,length2:15,lineStyle:{color:'#d9d9d9'}},data:[{value:100000,name:'地库地块',itemStyle:{color:'#1890ff'}},{value:300000,name:'工程支出',itemStyle:{color:'#722ed1'}},{value:310000,name:'绿化保洁',itemStyle:{color:'#52c41a'}},{value:70000,name:'能源支出',itemStyle:{color:'#fa8c16'}},{value:120000,name:'安巡支出',itemStyle:{color:'#eb2f96'}},{value:560000,name:'人工成本',itemStyle:{color:'#13c2c2'}},{value:15000,name:'其他',itemStyle:{color:'#d9d9d9'}},{value:30000,name:'杂项押金',itemStyle:{color:'#595959'}}]}]});
+window.addEventListener('resize',function(){eChart.resize();});
+
+var cChart=echarts.init(document.getElementById('collectionTrendChart'));
+cChart.setOption({color:ECHARTS_THEME_COLORS,backgroundColor:'#ffffff',tooltip:{trigger:'axis',formatter:function(p){return p[0].axisValue+'<br/>收缴率: '+p[0].value+'%';},backgroundColor:'#ffffff',borderColor:'#e8ecf1',textStyle:{color:'#333'}},grid:{left:'3%',right:'4%',bottom:'3%',containLabel:true},xAxis:{type:'category',data:['1月','2月','3月','4月','5月'],axisLine:{lineStyle:{color:'#e8ecf1'}},axisLabel:{color:'#8c8c8c'}},yAxis:{type:'value',min:0,max:100,splitLine:{lineStyle:{color:'#f0f0f0'}},axisLabel:{color:'#8c8c8c',formatter:'{value}%'}},series:[{name:'收缴率',type:'line',smooth:true,symbol:'circle',symbolSize:10,data:[78.5,82.1,85.3,89.7,92.3],lineStyle:{color:'#1890ff',width:3},itemStyle:{color:'#1890ff'},areaStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'rgba(24,144,255,0.25)'},{offset:1,color:'rgba(24,144,255,0)'}])},label:{show:true,formatter:'{c}%',color:'#1890ff',fontSize:13,fontWeight:'bold',position:'top'}}]});
+window.addEventListener('resize',function(){cChart.resize();});
+
+var tChart=echarts.init(document.getElementById('expenseTrendChart'));
+tChart.setOption({color:ECHARTS_THEME_COLORS,backgroundColor:'#ffffff',tooltip:{trigger:'axis',formatter:function(p){var h='<b>'+p[0].axisValue+'</b><br/>';p.forEach(function(v){h+=v.marker+' '+v.seriesName+': ¥'+v.value.toLocaleString('zh-CN')+'<br/>';});return h;},backgroundColor:'#ffffff',borderColor:'#e8ecf1',textStyle:{color:'#333'}},legend:{data:['地库地块','工程支出','绿化保洁','能源支出','安巡支出','人工成本','其他','杂项押金'],textStyle:{color:'#8c8c8c',fontSize:10},top:0},grid:{left:'3%',right:'4%',bottom:'3%',top:'18%',containLabel:true},xAxis:{type:'category',data:['1月','2月','3月','4月','5月'],axisLine:{lineStyle:{color:'#e8ecf1'}},axisLabel:{color:'#8c8c8c'}},yAxis:{type:'value',splitLine:{lineStyle:{color:'#f0f0f0'}},axisLabel:{color:'#8c8c8c'}},series:[{name:'地库地块',type:'bar',stack:'total',data:[100000,110000,110000,100000,100000],itemStyle:{color:'#1890ff'}},{name:'工程支出',type:'bar',stack:'total',data:[300000,310000,310000,290000,300000],itemStyle:{color:'#722ed1'}},{name:'绿化保洁',type:'bar',stack:'total',data:[310000,310000,310000,320000,320000],itemStyle:{color:'#52c41a'}},{name:'能源支出',type:'bar',stack:'total',data:[70000,75000,70000,70000,70000],itemStyle:{color:'#fa8c16'}},{name:'安巡支出',type:'bar',stack:'total',data:[120000,125000,120000,120000,120000],itemStyle:{color:'#eb2f96'}},{name:'人工成本',type:'bar',stack:'total',data:[560000,560000,560000,560000,560000],itemStyle:{color:'#13c2c2'}},{name:'其他',type:'bar',stack:'total',data:[15000,15000,15000,15000,15000],itemStyle:{color:'#d9d9d9'}},{name:'杂项押金',type:'bar',stack:'total',data:[30000,30000,30000,40000,30000],itemStyle:{color:'#bfbfbf'}}]});
+window.addEventListener('resize',function(){tChart.resize();});
+
+var pChart=echarts.init(document.getElementById('parkingChart'));
+pChart.setOption({color:ECHARTS_THEME_COLORS,backgroundColor:'#ffffff',tooltip:{trigger:'axis',formatter:function(p){var h='<b>'+p[0].axisValue+'</b><br/>';p.forEach(function(v){h+=v.marker+' '+v.seriesName+': ¥'+v.value.toLocaleString('zh-CN')+'<br/>';});return h;},backgroundColor:'#ffffff',borderColor:'#e8ecf1',textStyle:{color:'#333'}},grid:{left:'3%',right:'4%',bottom:'3%',containLabel:true},xAxis:{type:'category',data:['P-001','P-002','P-003','P-004'],axisLine:{lineStyle:{color:'#e8ecf1'}},axisLabel:{color:'#8c8c8c'}},yAxis:{type:'value',splitLine:{lineStyle:{color:'#f0f0f0'}},axisLabel:{color:'#8c8c8c',formatter:'¥{value}'}},series:[{name:'应收',type:'bar',data:[1000,1000,800,1000],itemStyle:{color:'#1890ff'}},{name:'实收',type:'bar',data:[1000,1000,800,0],itemStyle:{color:'#52c41a'}}]});
+window.addEventListener('resize',function(){pChart.resize();});
+}
+</script>
+</body>
+</html>
